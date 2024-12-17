@@ -1,0 +1,63 @@
+import numpy as np
+import pandas as pd
+from collections import Counter
+
+def euclidean_distance(point1, point2):
+    """Calculate the Euclidean distance between two points."""
+    return np.sqrt(np.sum((np.array(point1) - np.array(point2)) ** 2))
+
+def knn_predict(X_train, y_train, X_test, k=10):
+    """Predict the class labels for the test set using k-NN."""
+    predictions = []
+    for test_point in X_test:
+        # Compute distances between the test point and all training points
+        distances = [euclidean_distance(test_point, train_point) for train_point in X_train]
+        
+        # Get the indices of the k closest neighbors
+        k_indices = np.argsort(distances)[:k]
+        
+        # Get the labels of the k closest neighbors
+        k_labels = [y_train[i] for i in k_indices]
+        
+        # Return all k labels
+        predictions.append(k_labels)
+    return predictions
+
+def find_similar_tracks(data, track_name, k=10):
+    """Find k similar tracks to the given track using k-NN."""
+    # Normalize relevant features
+    feature_columns = ['danceability', 'energy', 'loudness',
+       'speechiness', 'acousticness', 'instrumentalness', 'liveness',
+       'valence', 'tempo', 'energy_danceability_product',
+       'mood_score', 'pca_feature_1',
+       'pca_feature_2', 'pca_feature_3', 'danceability_normalized',
+       'energy_normalized', 'speechiness_normalized',
+       'acousticness_normalized', 'instrumentalness_normalized',
+       'liveness_normalized', 'valence_normalized']
+    features = data[feature_columns]
+    normalized_features = (features - features.min()) / (features.max() - features.min())
+
+    # Find the index of the given track
+    track_index = data[data["track_name"] == track_name].index[0]
+    track_features = normalized_features.iloc[track_index]
+
+    # Exclude the given track from the training set
+    X_train = normalized_features.drop(index=track_index).values
+    X_test = track_features.values.reshape(1, -1)
+    y_train = data.drop(index=track_index)["track_name"].values
+
+    # Predict similar tracks
+    similar_track_names = knn_predict(X_train, y_train, X_test, k)[0]
+    return similar_track_names
+
+# Example usage
+if __name__ == "__main__":
+    # Load dataset
+    file_path = "spnew.csv"
+    data = pd.read_csv(file_path)
+
+    # Find similar tracks to a given track
+    track_name = "Track_1241"  # Replace with the track name of interest
+    k = 10
+    similar_tracks = find_similar_tracks(data, track_name, k)
+    print(f"Tracks similar to '{track_name}':", similar_tracks)
